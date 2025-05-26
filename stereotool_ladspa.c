@@ -68,7 +68,6 @@ static LADSPA_Handle instantiate(const LADSPA_Descriptor *desc, unsigned long s_
             bool ok = StereoTool_LoadPreset(handle->st_handle, preset_path);
             if (!ok) {
                 fprintf(stderr, "Failed to load preset\n");
-                assert(ok);
             }
         }
     }
