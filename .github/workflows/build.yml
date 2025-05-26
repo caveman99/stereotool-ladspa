@@ -26,7 +26,7 @@ jobs:
       - name: Download and extract Stereo Tool Generic Plugin
         run: |
           curl -L -o Stereo_Tool_Generic_plugin.zip https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
-          unzip Stereo_Tool_Generic_plugin.zip
+          unzip Stereo_Tool_Generic_plugin.zip | true
           case "${{ matrix.target }}" in
             x86_64)
               cp libStereoTool*/lib/Linux/IntelAMD/64/libStereoTool_intel64.so .
