@@ -67,6 +67,7 @@ jobs:
 
       - name: Build plugin
         run: |
+          cp libStereoTool*/include/*.h .
           make clean
           make
 
