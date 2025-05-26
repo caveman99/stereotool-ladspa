@@ -35,10 +35,10 @@ jobs:
               cp libStereoTool*/lib/Linux/IntelAMD/32/libStereoTool_intel32.so .
               ;;
             arm64)
-              cp libStereoTool*/lib/Linux/ARM/64/libStereoTool_arm64.so .
+              cp libStereoTool*/lib/Linux/ARM/64/libStereoTool_noX11_arm64.so .
               ;;
             armhf)
-              cp libStereoTool*/lib/Linux/ARM/32/libStereoTool_arm32.so .
+              cp libStereoTool*/lib/Linux/ARM/32/libStereoTool_noX11_arm32.so .
               ;;
            esac
 
@@ -61,13 +61,13 @@ jobs:
               echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
               echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
               echo "ARCH=arm64" >> $GITHUB_ENV
-              echo "SO=StereoTool_arm64" >> $GITHUB_ENV
+              echo "SO=StereoTool_noX11_arm64.so" >> $GITHUB_ENV
               ;;
             armhf)
               echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
               echo "CXX=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
               echo "ARCH=armhf" >> $GITHUB_ENV
-              echo "SO=StereoTool_arm32" >> $GITHUB_ENV
+              echo "SO=StereoTool_noX11_arm32" >> $GITHUB_ENV
               ;;
           esac
 
@@ -88,6 +88,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
