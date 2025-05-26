@@ -69,11 +69,13 @@ jobs:
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v3
+        with:
+          path: artifacts
 
       - name: Create release archive
         run: |
           mkdir release
-          find . -name "stereotool_ladspa-*.so" -exec cp {} release/ \;
+          find artifacts -name "*.so" -exec cp {} release/ \;
           cd release
           zip stereotool-ladspa-binaries.zip *.so
 
