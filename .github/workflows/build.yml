@@ -21,7 +21,7 @@ jobs:
       - name: Set up cross-compilation toolchains
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-multilib g++-aarch64-linux-gnu zip ladspa-sdk
+          sudo apt-get install -y gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu gcc-i686-linux-gnu g++-i686-linux-gnu g++-aarch64-linux-gnu zip ladspa-sdk
 
       - name: Download and extract Stereo Tool Generic Plugin
         run: |
@@ -52,8 +52,8 @@ jobs:
               echo "SO=StereoTool_intel64" >> $GITHUB_ENV
               ;;
             x86)
-              echo "CC=gcc -m32" >> $GITHUB_ENV
-              echo "CXX=g++ -m32" >> $GITHUB_ENV
+              echo "CC=i686-linux-gnu-gcc" >> $GITHUB_ENV
+              echo "CXX=i686-linux-gnu-g++" >> $GITHUB_ENV
               echo "ARCH=x86" >> $GITHUB_ENV
               echo "SO=StereoTool_intel32" >> $GITHUB_ENV
               ;;
