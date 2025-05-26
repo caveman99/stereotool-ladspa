@@ -18,52 +18,45 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up cross-compilation toolchains
+      - name: Update OS
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu gcc-i686-linux-gnu g++-i686-linux-gnu g++-aarch64-linux-gnu zip ladspa-sdk
 
       - name: Download and extract Stereo Tool Generic Plugin
         run: |
           curl -L -o Stereo_Tool_Generic_plugin.zip https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
           unzip Stereo_Tool_Generic_plugin.zip | true
-          case "${{ matrix.target }}" in
-            x86_64)
-              cp libStereoTool*/lib/Linux/IntelAMD/64/libStereoTool_intel64.so .
-              ;;
-            x86)
-              cp libStereoTool*/lib/Linux/IntelAMD/32/libStereoTool_intel32.so .
-              ;;
-            arm64)
-              cp libStereoTool*/lib/Linux/ARM/64/libStereoTool_noX11_arm64.so .
-              ;;
-            armhf)
-              cp libStereoTool*/lib/Linux/ARM/32/libStereoTool_noX11_arm32.so .
-              ;;
-           esac
 
       - name: Set env for ${{ matrix.target }}
         run: |
           case "${{ matrix.target }}" in
             x86_64)
+              sudo apt-get install -y gcc g++ zip ladspa-sdk
+              cp libStereoTool*/lib/Linux/IntelAMD/64/libStereoTool_intel64.so .
               echo "CC=gcc" >> $GITHUB_ENV
               echo "CXX=g++" >> $GITHUB_ENV
               echo "ARCH=x86_64" >> $GITHUB_ENV
               echo "SO=StereoTool_intel64" >> $GITHUB_ENV
               ;;
             x86)
+              sudo apt-get install -y gcc-i686-linux-gnu g++-i686-linux-gnu zip ladspa-sdk
+              cp libStereoTool*/lib/Linux/IntelAMD/32/libStereoTool_intel32.so .
               echo "CC=i686-linux-gnu-gcc" >> $GITHUB_ENV
               echo "CXX=i686-linux-gnu-g++" >> $GITHUB_ENV
               echo "ARCH=x86" >> $GITHUB_ENV
               echo "SO=StereoTool_intel32" >> $GITHUB_ENV
               ;;
             arm64)
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip ladspa-sdk
+              cp libStereoTool*/lib/Linux/ARM/64/libStereoTool_noX11_arm64.so .
               echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
               echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
               echo "ARCH=arm64" >> $GITHUB_ENV
-              echo "SO=StereoTool_noX11_arm64.so" >> $GITHUB_ENV
+              echo "SO=StereoTool_noX11_arm64" >> $GITHUB_ENV
               ;;
             armhf)
+              sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf zip ladspa-sdk
+              cp libStereoTool*/lib/Linux/ARM/32/libStereoTool_noX11_arm32.so .
               echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
               echo "CXX=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
               echo "ARCH=armhf" >> $GITHUB_ENV
