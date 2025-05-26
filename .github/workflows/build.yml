@@ -23,6 +23,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip ladspa-sdk
 
+      - name: Download and extract Stereo Tool Generic Plugin
+        run: |
+          curl -L -o Stereo_Tool_Generic_plugin.zip https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
+          unzip Stereo_Tool_Generic_plugin.zip
+          case "${{ matrix.target }}" in
+            x86_64)
+              cp libStereoTool*/lib/Linux/IntelAMD/64/libStereoTool_intel64.so .
+              ;;
+            x86)
+              cp libStereoTool*/lib/Linux/IntelAMD/32/libStereoTool_intel32.so .
+              ;;
+            arm64)
+              cp libStereoTool*/lib/Linux/ARM/64/libStereoTool_arm64.so .
+              ;;
+            armhf)
+              cp libStereoTool*/lib/Linux/ARM/32/libStereoTool_arm32.so .
+              ;;
+           esac
+
       - name: Set env for ${{ matrix.target }}
         run: |
           case "${{ matrix.target }}" in
@@ -30,21 +49,25 @@ jobs:
               echo "CC=gcc" >> $GITHUB_ENV
               echo "CXX=g++" >> $GITHUB_ENV
               echo "ARCH=x86_64" >> $GITHUB_ENV
+              echo "SO=StereoTool_intel64" >> $GITHUB_ENV
               ;;
             x86)
               echo "CC=gcc -m32" >> $GITHUB_ENV
               echo "CXX=g++ -m32" >> $GITHUB_ENV
               echo "ARCH=x86" >> $GITHUB_ENV
+              echo "SO=StereoTool_intel32" >> $GITHUB_ENV
               ;;
             arm64)
               echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
               echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
               echo "ARCH=arm64" >> $GITHUB_ENV
+              echo "SO=StereoTool_arm64" >> $GITHUB_ENV
               ;;
             armhf)
               echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
               echo "CXX=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
               echo "ARCH=armhf" >> $GITHUB_ENV
+              echo "SO=StereoTool_arm32" >> $GITHUB_ENV
               ;;
           esac
 
