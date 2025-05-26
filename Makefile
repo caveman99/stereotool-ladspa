@@ -1,7 +1,5 @@
 # Makefile for building the Stereo Tool LADSPA plugin
 
-CXX = g++
-CC = gcc
 CXXFLAGS = -fPIC -Wall -O2
 CFLAGS = -fPIC -Wall -O2
 LDFLAGS = -shared -L.
