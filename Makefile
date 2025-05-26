@@ -5,7 +5,7 @@ CC = gcc
 CXXFLAGS = -fPIC -Wall -O2
 CFLAGS = -fPIC -Wall -O2
 LDFLAGS = -shared -L.
-LDLIBS = -lStereoTool_intel64
+LDLIBS = -l$(SO)
 
 TARGET = stereotool_ladspa.so
 
