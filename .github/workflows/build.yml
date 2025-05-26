@@ -94,15 +94,17 @@ jobs:
 
       - name: Create release archive
         run: |
+          TAG_NAME=${GITHUB_REF##*/}
           mkdir release
           find artifacts -name "*.so" -exec cp {} release/ \;
+          cp README.md LICENSE release/
           cd release
-          zip stereotool-ladspa-binaries.zip *.so
+          zip stereotool-ladspa-${TAG_NAME}.zip *.so README.md LICENSE
 
       - name: Upload final archive to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: release/stereotool-ladspa-binaries.zip
+          files: release/stereotool-ladspa-${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
