@@ -1,0 +1,86 @@
+name: Build & Release Stereo Tool LADSPA Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, x86, arm64, armhf]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Set up cross-compilation toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu zip
+
+      - name: Set env for ${{ matrix.target }}
+        run: |
+          case "${{ matrix.target }}" in
+            x86_64)
+              echo "CC=gcc" >> $GITHUB_ENV
+              echo "CXX=g++" >> $GITHUB_ENV
+              echo "ARCH=x86_64" >> $GITHUB_ENV
+              ;;
+            x86)
+              echo "CC=gcc -m32" >> $GITHUB_ENV
+              echo "CXX=g++ -m32" >> $GITHUB_ENV
+              echo "ARCH=x86" >> $GITHUB_ENV
+              ;;
+            arm64)
+              echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+              echo "CXX=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+              echo "ARCH=arm64" >> $GITHUB_ENV
+              ;;
+            armhf)
+              echo "CC=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+              echo "CXX=arm-linux-gnueabihf-g++" >> $GITHUB_ENV
+              echo "ARCH=armhf" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Build plugin
+        run: |
+          make clean
+          make
+
+      - name: Rename output
+        run: mv stereotool_ladspa.so stereotool_ladspa-${{ matrix.target }}.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: stereotool-ladspa-${{ matrix.target }}
+          path: stereotool_ladspa-${{ matrix.target }}.so
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Create release archive
+        run: |
+          mkdir release
+          find . -name "stereotool_ladspa-*.so" -exec cp {} release/ \;
+          cd release
+          zip stereotool-ladspa-binaries.zip *.so
+
+      - name: Upload final archive to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/stereotool-ladspa-binaries.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
