@@ -26,7 +26,7 @@ void StereoTool_ProcessFloat(void* handle,
 }
 #endif
 
-#define STEREO_TOOL_UNIQUE_ID 667
+#define STEREO_TOOL_UNIQUE_ID 5941
 #define STEREO_TOOL_LABEL "stereotool"
 #define STEREO_TOOL_NAME "StereoTool LADSPA Wrapper"
 #define STEREO_TOOL_MAKER "Thomas Göttgens"
