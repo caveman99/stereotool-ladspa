@@ -21,10 +21,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Update OS
-        run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get update
-          DEBIAN_FRONTEND=noninteractive sudo apt-get upgrade -y
+      - name: Update package lists
+        # Only refresh the index; a full `apt-get upgrade` pulls in unrelated runner
+        # packages (firefox, chrome, ...) and makes the build slow and flaky on
+        # transient mirror errors. The toolchain is installed in "Set env" below.
+        run: DEBIAN_FRONTEND=noninteractive sudo apt-get update
 
       - name: Download and extract Stereo Tool Generic Plugin
         env:
