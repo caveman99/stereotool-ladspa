@@ -1,67 +1,77 @@
 # Stereo Tool LADSPA Plugin
 
-This project provides a LADSPA wrapper for [Thimeo Stereo Tool](https://www.thimeo.com/stereo-tool/), enabling integration of its broadcast-grade audio processing into LADSPA-compatible hosts.
+A LADSPA wrapper around the [Thimeo Stereo Tool](https://www.thimeo.com/stereo-tool/)
+DSP library. It exposes Stereo Tool's broadcast audio processing as a stereo
+LADSPA plugin usable from hosts such as ecasound, liquidsoap, and Audacity.
 
----
+## Requirements
 
-## 🎛 Features
+- A Linux LADSPA host
+- The Stereo Tool shared library for your architecture (`libStereoTool_*.so`)
+  and headers, from the
+  [Thimeo download page](https://www.thimeo.com/stereo-tool/download/)
+- A C/C++ toolchain and the LADSPA SDK headers (`ladspa-sdk`)
 
-* Wraps `libStereoTool_intel64.so` into a LADSPA plugin
-* Accepts stereo input/output
-* Loads a `settings.sts` preset at runtime from the same directory
-* Written in C with a C++ wrapper for compatibility
+## Building
 
-> ⚠️ Note: Due to the limited parameter passing capabilities of the LADSPA interface, the path to the configuration file (`settings.sts`) is currently hardcoded to the same directory as the plugin `.so` file.
-
----
-
-## 🔧 Installation
-
-1. Download "x86/64 Linux libStereoTool plugin" from [Thimeo](https://www.thimeo.com/stereo-tool/download/). Put the included `libStereoTool_intel64.so` (this is for 64 bit hosts, 32 bit and ARM are also available) into the library search path and run `ldconfig`
-2. Clone this repo and run:
+Place the matching `libStereoTool_*.so` and its headers in the source
+directory, then build:
 
 ```bash
-make
-make install
+make SO=StereoTool_intel64
 ```
 
-3. Ensure your LADSPA host (like `ecasound`, `liquidsoap`, or `Audacity`) can discover the `.so` file:
+`SO` is the name of the Stereo Tool library to link against, without the
+`lib` prefix or `.so` suffix. Use the value for your architecture, for
+example `StereoTool_intel64` (x86-64) or `StereoTool_noX11_arm64` (ARM64).
+The build produces `stereotool_ladspa.so`.
+
+## Installation
+
+Install the Stereo Tool library where the dynamic loader can find it:
 
 ```bash
+sudo cp libStereoTool_intel64.so /usr/local/lib/
+sudo ldconfig
+```
+
+Copy the plugin into a LADSPA search path and point the host at it:
+
+```bash
+mkdir -p ~/.ladspa
+cp stereotool_ladspa.so ~/.ladspa/
 export LADSPA_PATH=~/.ladspa
 ```
 
----
+## Configuration
 
-## 🔄 Configuration
+At load time the plugin reads a `settings.sts` preset from its own directory
+(the one containing `stereotool_ladspa.so`). Export this file from the Stereo
+Tool GUI and place it next to the plugin. The path is fixed because LADSPA
+provides no way to pass a configuration path to a plugin.
 
-Place a `settings.sts` file (exported from Stereo Tool GUI) in the same directory as `stereotool_ladspa.so`. This will be auto-loaded at startup.
+The preset is parsed by the Stereo Tool library at startup, so the plugin
+directory should not be writable by untrusted users.
 
-You can download or generate your own `.sts` config using [Stereo Tool GUI](https://www.thimeo.com/stereo-tool/).
+## Ports
 
----
+| Port     | Direction | Type  |
+| -------- | --------- | ----- |
+| Input L  | input     | audio |
+| Input R  | input     | audio |
+| Output L | output    | audio |
+| Output R | output    | audio |
 
-## 📄 License
+## License
 
-This LADSPA wrapper is released under the [GNU General Public License v3.0 (GPLv3)](https://www.gnu.org/licenses/gpl-3.0.html).
+This wrapper is released under the GNU General Public License v3.0; see
+[`LICENSE`](LICENSE).
 
-⚠️ **Important**: This wrapper depends on `libStereoTool_intel64.so` which is licensed separately by [Thimeo](https://www.thimeo.com/licensing/). Use of Stereo Tool's DSP code may require a valid license.
+The Stereo Tool DSP library is proprietary and licensed separately by
+[Thimeo](https://www.thimeo.com/licensing/). A valid license may be required
+to use it.
 
----
+## Contributing
 
-## 🙏 Credits
-
-* [Thimeo](https://www.thimeo.com) for Stereo Tool DSP
-* LADSPA SDK
-
----
-
-## 📣 Feedback & Contributions
-
-Pull requests and issues welcome.
-
-To contribute, fork this repo and submit a PR with:
-
-* Clear description of change
-* Build/test instructions
-* Consistent code style
+Issues and pull requests are welcome. Please include a clear description of
+the change and build or test instructions.
