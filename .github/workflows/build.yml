@@ -81,6 +81,55 @@ jobs:
           make clean
           make
 
+      - name: Smoke test
+        # Only the native target can be executed on the x86_64 runner; the others are
+        # cross-compiled. Loads the built plugin, checks the descriptor/ports, and runs
+        # one block of audio through it so regressions in the wiring surface here.
+        if: matrix.target == 'x86_64'
+        run: |
+          set -euo pipefail
+          cat > smoke_test.c <<'EOF'
+          #include <dlfcn.h>
+          #include <stdio.h>
+          #include <ladspa.h>
+
+          int main(void) {
+              void *lib = dlopen("./stereotool_ladspa.so", RTLD_NOW);
+              if (!lib) { fprintf(stderr, "dlopen failed: %s\n", dlerror()); return 1; }
+
+              LADSPA_Descriptor_Function df =
+                  (LADSPA_Descriptor_Function)dlsym(lib, "ladspa_descriptor");
+              if (!df) { fprintf(stderr, "ladspa_descriptor not found\n"); return 1; }
+
+              const LADSPA_Descriptor *d = df(0);
+              if (!d) { fprintf(stderr, "descriptor(0) is NULL\n"); return 1; }
+              if (df(1) != NULL) { fprintf(stderr, "descriptor(1) should be NULL\n"); return 1; }
+              if (d->PortCount != 4) { fprintf(stderr, "expected 4 ports, got %lu\n", d->PortCount); return 1; }
+
+              LADSPA_Handle h = d->instantiate(d, 48000);
+              if (!h) {
+                  /* NULL here comes from the proprietary StereoTool_Create (e.g. license
+                     state), not from this wrapper, so do not fail the build on it. */
+                  fprintf(stderr, "instantiate returned NULL; skipping run()\n");
+                  return 0;
+              }
+
+              const unsigned long N = 256;
+              static float inL[256], inR[256], outL[256], outR[256];
+              d->connect_port(h, 0, inL);
+              d->connect_port(h, 1, inR);
+              d->connect_port(h, 2, outL);
+              d->connect_port(h, 3, outR);
+              d->run(h, N);
+              d->cleanup(h);
+
+              printf("smoke test OK: %s\n", d->Label);
+              return 0;
+          }
+          EOF
+          cc -Wall -o smoke_test smoke_test.c -ldl
+          LD_LIBRARY_PATH="$PWD" ./smoke_test
+
       - name: Rename output
         run: mv stereotool_ladspa.so stereotool_ladspa-${{ matrix.target }}.so
 
