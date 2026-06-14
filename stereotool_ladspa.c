@@ -19,9 +19,10 @@ bool StereoTool_LoadPreset(void* handle, const char* filename);
 void StereoTool_ProcessFloat(void* handle,
                              float* inL, float* inR,
                              float* outL, float* outR,
+                             float* scratch,
                              unsigned long count,
                              int sampleRate
-                             );                         
+                             );
 #ifdef __cplusplus
 }
 #endif
@@ -47,13 +48,25 @@ typedef struct {
     float *output_r;
     void *st_handle;
     int sample_rate;
+    float *scratch;              /* interleaved L/R scratch buffer */
+    unsigned long scratch_frames; /* capacity of scratch, in frames */
 } StereoToolHandle;
 
 static LADSPA_Handle instantiate(const LADSPA_Descriptor *desc, unsigned long s_rate) {
-    StereoToolHandle *handle = malloc(sizeof(StereoToolHandle));
+    /* calloc so unconnected ports / scratch start as NULL rather than indeterminate. */
+    StereoToolHandle *handle = calloc(1, sizeof(StereoToolHandle));
+    if (!handle) {
+        return NULL;
+    }
     handle->sample_rate = (int)s_rate;
     handle->st_handle = StereoTool_Create(handle->sample_rate);
-  
+    if (!handle->st_handle) {
+        /* Fail instantiation rather than hand back a half-initialised instance whose
+           run() would forward a NULL handle into the DSP library. */
+        free(handle);
+        return NULL;
+    }
+
     Dl_info info;
     if (dladdr((void *)instantiate, &info) && info.dli_fname) {
         char path[PATH_MAX];
@@ -87,12 +100,39 @@ static void connect_port(LADSPA_Handle instance, unsigned long port, LADSPA_Data
 
 static void run(LADSPA_Handle instance, unsigned long sample_count) {
     StereoToolHandle *handle = (StereoToolHandle *)instance;
+
+    /* A well-behaved host connects every port before run(); guard against one that
+       does not, so we never dereference an unconnected (NULL) buffer. */
+    if (!handle->input_l || !handle->input_r ||
+        !handle->output_l || !handle->output_r) {
+        return;
+    }
+
+    /* Grow the interleave scratch buffer if needed. This only allocates when the block
+       size increases (typically once), keeping the steady-state run() allocation-free as
+       required by LADSPA_PROPERTY_HARD_RT_CAPABLE. */
+    if (sample_count > handle->scratch_frames) {
+        /* Overflow-safe size check before the 2*sizeof(float) multiply. */
+        if (sample_count > (ULONG_MAX / (2 * sizeof(float)))) {
+            return;
+        }
+        float *buf = realloc(handle->scratch, sample_count * 2 * sizeof(float));
+        if (!buf) {
+            /* Keep the existing (smaller) buffer and skip this block rather than
+               corrupt memory. */
+            return;
+        }
+        handle->scratch = buf;
+        handle->scratch_frames = sample_count;
+    }
+
     StereoTool_ProcessFloat(
         handle->st_handle,
         handle->input_l,
         handle->input_r,
         handle->output_l,
         handle->output_r,
+        handle->scratch,
         sample_count,
         handle->sample_rate
     );
@@ -101,6 +141,7 @@ static void run(LADSPA_Handle instance, unsigned long sample_count) {
 static void cleanup(LADSPA_Handle instance) {
     StereoToolHandle *handle = (StereoToolHandle *)instance;
     StereoTool_Destroy(handle->st_handle);
+    free(handle->scratch);
     free(handle);
 }
 
@@ -125,6 +166,11 @@ static LADSPA_PortRangeHint port_range_hints[PORT_COUNT];
 __attribute__((constructor))
 static void init() {
     descriptor = (LADSPA_Descriptor *)malloc(sizeof(LADSPA_Descriptor));
+    if (!descriptor) {
+        /* Leave descriptor NULL; ladspa_descriptor() then reports no plugins instead
+           of crashing the host at library load. */
+        return;
+    }
     descriptor->UniqueID = STEREO_TOOL_UNIQUE_ID;
     descriptor->Label = STEREO_TOOL_LABEL;
     descriptor->Properties = LADSPA_PROPERTY_HARD_RT_CAPABLE;

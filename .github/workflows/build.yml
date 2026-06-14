@@ -5,7 +5,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-  
+
+# Least privilege by default; the release job opts into contents: write below.
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -16,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Update OS
         run: |
@@ -24,9 +27,16 @@ jobs:
           DEBIAN_FRONTEND=noninteractive sudo apt-get upgrade -y
 
       - name: Download and extract Stereo Tool Generic Plugin
+        env:
+          # Supply-chain integrity: pinned SHA-256 of the upstream archive. The URL serves
+          # an unversioned "current" build, so update this whenever Thimeo ships a new one.
+          STEREOTOOL_ZIP_SHA256: f412a77fb3038c49e760245f9a8aa0ac8d9d9108156ad9fc9c53f7cb9b52566a
         run: |
-          curl -L -o Stereo_Tool_Generic_plugin.zip https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
-          unzip Stereo_Tool_Generic_plugin.zip | true
+          set -euo pipefail
+          curl -fL --retry 3 -o Stereo_Tool_Generic_plugin.zip \
+            https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
+          echo "${STEREOTOOL_ZIP_SHA256}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
+          unzip -o Stereo_Tool_Generic_plugin.zip
 
       - name: Set env for ${{ matrix.target }}
         run: |
@@ -71,11 +81,60 @@ jobs:
           make clean
           make
 
+      - name: Smoke test
+        # Only the native target can be executed on the x86_64 runner; the others are
+        # cross-compiled. Loads the built plugin, checks the descriptor/ports, and runs
+        # one block of audio through it so regressions in the wiring surface here.
+        if: matrix.target == 'x86_64'
+        run: |
+          set -euo pipefail
+          cat > smoke_test.c <<'EOF'
+          #include <dlfcn.h>
+          #include <stdio.h>
+          #include <ladspa.h>
+
+          int main(void) {
+              void *lib = dlopen("./stereotool_ladspa.so", RTLD_NOW);
+              if (!lib) { fprintf(stderr, "dlopen failed: %s\n", dlerror()); return 1; }
+
+              LADSPA_Descriptor_Function df =
+                  (LADSPA_Descriptor_Function)dlsym(lib, "ladspa_descriptor");
+              if (!df) { fprintf(stderr, "ladspa_descriptor not found\n"); return 1; }
+
+              const LADSPA_Descriptor *d = df(0);
+              if (!d) { fprintf(stderr, "descriptor(0) is NULL\n"); return 1; }
+              if (df(1) != NULL) { fprintf(stderr, "descriptor(1) should be NULL\n"); return 1; }
+              if (d->PortCount != 4) { fprintf(stderr, "expected 4 ports, got %lu\n", d->PortCount); return 1; }
+
+              LADSPA_Handle h = d->instantiate(d, 48000);
+              if (!h) {
+                  /* NULL here comes from the proprietary StereoTool_Create (e.g. license
+                     state), not from this wrapper, so do not fail the build on it. */
+                  fprintf(stderr, "instantiate returned NULL; skipping run()\n");
+                  return 0;
+              }
+
+              const unsigned long N = 256;
+              static float inL[256], inR[256], outL[256], outR[256];
+              d->connect_port(h, 0, inL);
+              d->connect_port(h, 1, inR);
+              d->connect_port(h, 2, outL);
+              d->connect_port(h, 3, outR);
+              d->run(h, N);
+              d->cleanup(h);
+
+              printf("smoke test OK: %s\n", d->Label);
+              return 0;
+          }
+          EOF
+          cc -Wall -o smoke_test smoke_test.c -ldl
+          LD_LIBRARY_PATH="$PWD" ./smoke_test
+
       - name: Rename output
         run: mv stereotool_ladspa.so stereotool_ladspa-${{ matrix.target }}.so
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stereotool-ladspa-${{ matrix.target }}
           path: stereotool_ladspa-${{ matrix.target }}.so
@@ -83,13 +142,15 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
 
@@ -103,7 +164,7 @@ jobs:
           zip stereotool-ladspa-${TAG_NAME}.zip *.so README.md LICENSE
 
       - name: Upload final archive to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           files: release/stereotool-ladspa-${{ github.ref_name }}.zip
         env:
