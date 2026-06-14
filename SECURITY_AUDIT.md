@@ -296,11 +296,10 @@ The following fixes were committed to the `audit` branch alongside this report:
   `actions/download-artifact` v8.0.1, `softprops/action-gh-release` v3.0.0.
 * **#7** — `unzip … | true` replaced with `set -euo pipefail`, `curl -fL --retry 3`, and
   a failing `unzip -o`.
-* **#1** — Integrity-check step added: verifies the download against the
-  `STEREOTOOL_ZIP_SHA256` repo variable when set, otherwise prints the observed hash and
-  a warning. **Action required:** pin the hash to complete this fix (the audit
-  environment's egress allowlist blocks `download.thimeo.com`, so the hash must be
-  pinned from a host that can reach it).
+* **#1** — Fixed. The download is now verified against a pinned SHA-256
+  (`f412a77fb3038c49e760245f9a8aa0ac8d9d9108156ad9fc9c53f7cb9b52566a`) and the build
+  fails on mismatch. Because the URL serves an unversioned "current" build, the pinned
+  hash must be refreshed whenever Thimeo ships a new archive.
 
 Both translation units were syntax-checked (`-Wall -Wextra`, clean apart from
 pre-existing unused-parameter warnings) and the workflow YAML was validated.

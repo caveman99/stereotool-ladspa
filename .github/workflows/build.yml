@@ -27,20 +27,15 @@ jobs:
           DEBIAN_FRONTEND=noninteractive sudo apt-get upgrade -y
 
       - name: Download and extract Stereo Tool Generic Plugin
+        env:
+          # Supply-chain integrity: pinned SHA-256 of the upstream archive. The URL serves
+          # an unversioned "current" build, so update this whenever Thimeo ships a new one.
+          STEREOTOOL_ZIP_SHA256: f412a77fb3038c49e760245f9a8aa0ac8d9d9108156ad9fc9c53f7cb9b52566a
         run: |
           set -euo pipefail
           curl -fL --retry 3 -o Stereo_Tool_Generic_plugin.zip \
             https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
-          # Supply-chain integrity: verify against a pinned hash when one is configured
-          # (set the STEREOTOOL_ZIP_SHA256 repository variable). Until then, surface the
-          # observed hash so a value can be pinned deliberately.
-          EXPECTED_SHA="${{ vars.STEREOTOOL_ZIP_SHA256 }}"
-          if [ -n "$EXPECTED_SHA" ]; then
-            echo "${EXPECTED_SHA}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
-          else
-            echo "::warning::STEREOTOOL_ZIP_SHA256 is not set; skipping integrity check. Pin a SHA-256 to protect the release supply chain."
-            sha256sum Stereo_Tool_Generic_plugin.zip
-          fi
+          echo "${STEREOTOOL_ZIP_SHA256}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
           unzip -o Stereo_Tool_Generic_plugin.zip
 
       - name: Set env for ${{ matrix.target }}
