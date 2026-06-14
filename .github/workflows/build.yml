@@ -36,7 +36,10 @@ jobs:
           curl -fL --retry 3 -o Stereo_Tool_Generic_plugin.zip \
             https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
           echo "${STEREOTOOL_ZIP_SHA256}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
-          unzip -o Stereo_Tool_Generic_plugin.zip
+          # unzip exits 1 on non-fatal warnings (the archive carries Windows paths with
+          # backslashes); integrity is already guaranteed by the checksum above, so treat
+          # a warning as success but still fail on real corruption (exit >= 2).
+          unzip -o Stereo_Tool_Generic_plugin.zip || { rc=$?; [ "$rc" -le 1 ] || exit "$rc"; }
 
       - name: Set env for ${{ matrix.target }}
         run: |
