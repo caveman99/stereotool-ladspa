@@ -34,7 +34,11 @@ jobs:
           STEREOTOOL_ZIP_SHA256: f412a77fb3038c49e760245f9a8aa0ac8d9d9108156ad9fc9c53f7cb9b52566a
         run: |
           set -euo pipefail
-          curl -fL --retry 3 -o Stereo_Tool_Generic_plugin.zip \
+          # Bound each attempt so a stalled connection aborts and retries instead of
+          # hanging the job (an upstream stall once blocked a runner for ~9 minutes).
+          curl -fL --connect-timeout 30 --max-time 240 \
+            --retry 5 --retry-delay 5 --retry-all-errors \
+            -o Stereo_Tool_Generic_plugin.zip \
             https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
           echo "${STEREOTOOL_ZIP_SHA256}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
           # unzip exits 1 on non-fatal warnings (the archive carries Windows paths with
