@@ -5,7 +5,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-  
+
+# Least privilege by default; the release job opts into contents: write below.
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -25,8 +28,20 @@ jobs:
 
       - name: Download and extract Stereo Tool Generic Plugin
         run: |
-          curl -L -o Stereo_Tool_Generic_plugin.zip https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
-          unzip Stereo_Tool_Generic_plugin.zip | true
+          set -euo pipefail
+          curl -fL --retry 3 -o Stereo_Tool_Generic_plugin.zip \
+            https://download.thimeo.com/Stereo_Tool_Generic_plugin.zip
+          # Supply-chain integrity: verify against a pinned hash when one is configured
+          # (set the STEREOTOOL_ZIP_SHA256 repository variable). Until then, surface the
+          # observed hash so a value can be pinned deliberately.
+          EXPECTED_SHA="${{ vars.STEREOTOOL_ZIP_SHA256 }}"
+          if [ -n "$EXPECTED_SHA" ]; then
+            echo "${EXPECTED_SHA}  Stereo_Tool_Generic_plugin.zip" | sha256sum -c -
+          else
+            echo "::warning::STEREOTOOL_ZIP_SHA256 is not set; skipping integrity check. Pin a SHA-256 to protect the release supply chain."
+            sha256sum Stereo_Tool_Generic_plugin.zip
+          fi
+          unzip -o Stereo_Tool_Generic_plugin.zip
 
       - name: Set env for ${{ matrix.target }}
         run: |
@@ -83,6 +98,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: ${{ github.event_name != 'workflow_dispatch' }}
     steps:
       - name: Checkout source

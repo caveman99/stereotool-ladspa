@@ -6,6 +6,13 @@
 **Out of scope:** The proprietary `libStereoTool` DSP library (closed-source binary;
 behaviour treated as a trusted-but-opaque dependency).
 
+> **Remediation status (2026-06-14):** Findings #2, #3, #4, #5, #6, #7, #9 and #10 have
+> been fixed in this branch. #1 has the verification *mechanism* in place but still
+> requires the maintainer to pin a SHA-256 (repo variable `STEREOTOOL_ZIP_SHA256`).
+> #8 is a documentation/permissions recommendation. SHA-pinning of the GitHub Actions
+> themselves (part of #6) was intentionally left to the maintainer to avoid guessing
+> commit hashes. See "Remediation applied" at the end.
+
 ## Summary
 
 This is a small LADSPA plugin that wraps Thimeo Stereo Tool. The attack surface is
@@ -265,3 +272,30 @@ return a half-initialised instance.
    and #9 together.
 3. Harden the host-contract assumptions: `calloc` + NULL guards (#5, #10).
 4. Lock down CI (#6) and document install-directory permissions (#8).
+
+---
+
+## Remediation applied
+
+The following fixes were committed to the `audit` branch alongside this report:
+
+* **#2** — `instantiate` now uses `calloc` and returns `NULL` on allocation failure;
+  `init()` returns early (leaving `descriptor` NULL) if its `malloc` fails.
+* **#3 / #9** — The per-`run()` `new[]`/`delete[]` is gone. The interleave buffer now
+  lives in the instance (`scratch`/`scratch_frames`) and is grown via `realloc` only when
+  the block size increases, with an explicit overflow check before the
+  `sample_count * 2 * sizeof(float)` multiply. Steady-state `run()` is allocation-free.
+* **#4** — `StereoTool_ProcessFloat` body is wrapped in `try { … } catch (...)`, emitting
+  silence so no C++ exception can cross the `extern "C"` boundary.
+* **#5 / #10** — `calloc` zero-inits port pointers; `run()` returns early if any port is
+  unconnected; `instantiate` fails if `StereoTool_Create` returns NULL.
+* **#6** — Top-level `permissions: contents: read` added; the `release` job opts into
+  `contents: write`. (Action SHA-pinning left to the maintainer.)
+* **#7** — `unzip … | true` replaced with `set -euo pipefail`, `curl -fL --retry 3`, and
+  a failing `unzip -o`.
+* **#1** — Integrity-check step added: verifies the download against the
+  `STEREOTOOL_ZIP_SHA256` repo variable when set, otherwise prints the observed hash and
+  a warning. **Action required:** pin the hash to complete this fix.
+
+Both translation units were syntax-checked (`-Wall -Wextra`, clean apart from
+pre-existing unused-parameter warnings) and the workflow YAML was validated.
