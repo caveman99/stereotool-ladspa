@@ -290,12 +290,17 @@ The following fixes were committed to the `audit` branch alongside this report:
 * **#5 / #10** — `calloc` zero-inits port pointers; `run()` returns early if any port is
   unconnected; `instantiate` fails if `StereoTool_Create` returns NULL.
 * **#6** — Top-level `permissions: contents: read` added; the `release` job opts into
-  `contents: write`. (Action SHA-pinning left to the maintainer.)
+  `contents: write`. All GitHub Actions are pinned to the commit SHA of their latest
+  major release (with the version in a trailing comment):
+  `actions/checkout` v6.0.3, `actions/upload-artifact` v7.0.1,
+  `actions/download-artifact` v8.0.1, `softprops/action-gh-release` v3.0.0.
 * **#7** — `unzip … | true` replaced with `set -euo pipefail`, `curl -fL --retry 3`, and
   a failing `unzip -o`.
 * **#1** — Integrity-check step added: verifies the download against the
   `STEREOTOOL_ZIP_SHA256` repo variable when set, otherwise prints the observed hash and
-  a warning. **Action required:** pin the hash to complete this fix.
+  a warning. **Action required:** pin the hash to complete this fix (the audit
+  environment's egress allowlist blocks `download.thimeo.com`, so the hash must be
+  pinned from a host that can reach it).
 
 Both translation units were syntax-checked (`-Wall -Wextra`, clean apart from
 pre-existing unused-parameter warnings) and the workflow YAML was validated.
